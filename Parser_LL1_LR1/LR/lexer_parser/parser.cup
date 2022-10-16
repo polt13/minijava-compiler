@@ -1,0 +1,181 @@
+/* Simple +/-/* expression language; parser evaluates constant expressions on the fly*/
+/**
+ *  Package and Import Specifications
+ */
+import java_cup.runtime.*;
+
+/**
+ *  Usercode Components
+ */
+parser code {:
+    // Connect this parser to a scanner!
+    Scanner s;
+    Parser(Scanner s){ this.s=s; }
+:}
+
+/* define how to connect to the scanner! */
+scan with {: return s.next_token(); :};
+
+/**
+ *  Symbol Lists
+ */
+
+/* Terminals (tokens returned by the scanner). */
+terminal            PLUS, REVERSE, PREFIX, IF, ELSE,LPAREN, RPAREN,BRR,ID,COMMA,FUNDIFFER;
+terminal String     STRING_LITERAL;        // our scanner provides numbers as strings
+ 
+
+/*  Non terminals */
+non terminal _start;
+non terminal fun,funbody,funlist,ids,varlist;
+
+non terminal exprlist_top; //outside function exprlist
+
+non terminal ifstmt_fn,rev_fn,prefix_fn,concat_fn; //with ID (inside function)
+
+non terminal funcall,expr_fn,args,arglist; //inside function (has ID)
+
+non terminal funcall_top,expr_top, args_outer,arglist_outer; //outside function (no ID)
+
+non terminal ifstmt_top,rev_top,prefix_top,concat_top; //without ID
+
+
+/**
+ *  Precedence Declarations
+ */
+
+precedence left PREFIX;
+precedence left IF;
+precedence left PLUS;
+precedence left REVERSE;
+
+/**
+ *  The Grammar Rules
+ */
+
+ _start ::= funlist:fnlist exprlist_top:e  {:
+    System.out.println("public class BetterJava {");
+    System.out.println("\tpublic static void main(String[] args) {");
+    System.out.printf("%s",e);
+    System.out.println("\t}");
+    System.out.printf("\t%s\n",fnlist);
+    System.out.println("}");
+ :} | funlist:fnlist  {:
+    System.out.println("public class BetterJava {");
+    System.out.println("\tpublic static void main(String[] args) {");
+    System.out.printf("%s","");
+    System.out.println("\t}");
+    System.out.printf("\t%s\n",fnlist);
+    System.out.println("}");
+ :} 
+ |
+    exprlist_top:e  {:
+    System.out.println("public class BetterJava {\t\n");
+    System.out.println("\tpublic static void main(String[] args) {");
+    System.out.printf("%s",e);
+    System.out.println("\t}");
+    System.out.println("}");
+ :}
+ |  {:
+    System.out.println("public class BetterJava {\t\n");
+    System.out.println("\tpublic static void main(String[] args) {");
+    System.out.printf("%s","");
+    System.out.println("\t}");
+    System.out.println("}");
+ :} 
+ ;
+
+funlist ::= fun:fn   {: RESULT = String.format("%s",fn); :}
+| funlist:fnl fun:fn {: RESULT = String.format("%s\n\t%s",fnl,fn); :}
+;
+
+fun ::= ID:funid LPAREN varlist:id FUNDIFFER funbody:fb BRR {: RESULT = String.format("public static String %s(%s){\n%s\n\t}",funid,id,fb); :}
+;
+
+funbody ::= expr_fn:e {: RESULT = String.format("\t\treturn %s;",e); :}
+;
+
+varlist ::= ids:id_ {: RESULT = String.format("%s",id_); :}
+|                   {:  RESULT = String.format("%s","");  :};
+
+ids ::= ids:idl COMMA  ID:id            {: RESULT = String.format("%s, String %s",idl, id); :}
+|  ID:id    {: RESULT = String.format("String %s",id); :}
+;
+
+
+funcall ::= ID:id_ LPAREN arglist:al RPAREN {: RESULT = String.format("%s(%s)",id_,al); :} //inside of function
+| ID:id_ LPAREN  RPAREN {: RESULT = String.format("%s()",id_); :}
+;
+
+funcall_top ::= ID:id_ LPAREN arglist_outer:al RPAREN {: RESULT = String.format("%s(%s)",id_,al); :} //outside of function
+| ID:id_ LPAREN  RPAREN {: RESULT = String.format("%s()",id_); :}
+;
+
+
+// expr outside function
+exprlist_top ::= expr_top:e {: RESULT = String.format("\t\tSystem.out.println(%s);\n",e); :}
+|  exprlist_top:el expr_top:e {: RESULT = String.format("%s\t\tSystem.out.println(%s);\n",el,e); :}
+;
+
+//expressions allowed inside of a function       
+expr_fn ::= STRING_LITERAL:str    {: RESULT = String.format("\"%s\"",str);        :}
+        | rev_fn:r               {: RESULT = String.format("%s",r); :}
+        | concat_fn:con          {: RESULT = String.format("%s",con); :}
+        | funcall:fcall       {: RESULT = String.format("%s",fcall); :}       
+        | ifstmt_fn:ie           {: RESULT = String.format("%s",ie); :}    
+        | ID:id               {: RESULT = String.format("%s",id); :}
+;
+
+//expressions allowed outside of a function (no ID allowed)
+expr_top ::= STRING_LITERAL:str    {: RESULT = String.format("\"%s\"",str);        :}
+        | rev_top:r               {: RESULT = String.format("%s",r); :}
+        | concat_top:con          {: RESULT = String.format("%s",con); :}
+        | funcall_top:fcall  {: RESULT = String.format("%s",fcall); :}       
+        | ifstmt_top:ie           {: RESULT = String.format("%s",ie); :}    
+;
+
+
+//function call inside of a function
+arglist ::= args:args_ {: RESULT = String.format("%s",args_); :}
+;
+
+args ::= args:args_ COMMA expr_fn:e {: RESULT = String.format("%s,%s",args_,e); :}       
+|        expr_fn:e                {: RESULT =  String.format("%s",e); :}
+;
+
+//top levle function call
+arglist_outer ::= args_outer:args_ {: RESULT = String.format("%s",args_); :}
+;
+
+
+args_outer ::= args_outer:args_ COMMA expr_top:e {: RESULT = String.format("%s,%s",args_,e); :}       
+|        expr_top:e                {: RESULT =  String.format("%s",e); :}
+;
+
+// ID ALLOWED AS OPERAND
+
+rev_fn ::= REVERSE expr_fn:e  {: RESULT = String.format("(new StringBuilder(%s)).reverse().toString()",e); :}
+;
+
+prefix_fn ::= expr_fn:s1 PREFIX expr_fn:s2   {: RESULT = String.format("%s.startsWith(%s)",s2,s1);    :}
+;
+
+concat_fn ::= expr_fn:s1 PLUS expr_fn:s2 {: RESULT = String.format("%s+%s",s1,s2);       :}
+;
+
+ifstmt_fn ::=  IF LPAREN prefix_fn:p RPAREN expr_fn:e2 ELSE expr_fn:e3 {: RESULT = String.format("((%s) ? (%s) : (%s))", p,e2,e3); :}
+;     
+
+//// ID NOT ALLOWED AS OPERAND! (TOP LEVEL CALLS)
+
+rev_top ::= REVERSE expr_top:e  {: RESULT = String.format("(new StringBuilder(%s)).reverse().toString()",e); :}
+;
+
+prefix_top ::= expr_top:s1 PREFIX expr_top:s2   {: RESULT = String.format("%s.startsWith(%s)",s2,s1);    :}
+;
+
+concat_top ::= expr_top:s1 PLUS expr_top:s2 {: RESULT = String.format("%s+%s",s1,s2);       :}
+;
+
+ifstmt_top ::=  IF LPAREN prefix_top:p RPAREN expr_top:e2 ELSE expr_top:e3 {: RESULT = String.format("((%s) ? (%s) : (%s))", p,e2,e3); :}
+;     
