@@ -1,4 +1,4 @@
-** Compilation and Running ** 
+**Compilation and Running** 
 
 - `make && java Main Test.java`
 - `clang Test.ll -o Test && ./Test`
