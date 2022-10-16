@@ -1,4 +1,3 @@
-This project is split in 3 parts:
 
 **Part 1**
 ***
@@ -29,7 +28,9 @@ The LR(1) parser deals with a grammar that looks like this:
     findLangType("Java")
     findLangType("Javascript")
     findLangType("Typescript")
-``` and then produces an equivalent Java code.
+``` 
+
+and then produces an equivalent Java code.
 
 
 Another example:
@@ -54,6 +55,7 @@ Another example:
 Output:
 
 ```java
+
 public class Main {
     public static void main(String[] args) {
         System.out.println(name());
@@ -72,7 +74,8 @@ public class Main {
     public static String fullname(String first_name, String sep, String last_name) {
         return first_name + sep + last_name;
     }
-}```
+}
+```
 
 
 **Part 2**
